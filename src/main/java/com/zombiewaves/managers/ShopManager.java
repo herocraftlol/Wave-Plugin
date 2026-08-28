@@ -181,11 +181,26 @@ public class ShopManager {
         }
     }
 
+    // Holder used to identify shop inventories in the click listener,
+    // and to map each clicked slot back to the item key that was bought.
+    public static class ShopHolder implements org.bukkit.inventory.InventoryHolder {
+        private final Map<Integer, String> slotToKey = new HashMap<>();
+        private org.bukkit.inventory.Inventory inventory;
+
+        @Override
+        public org.bukkit.inventory.Inventory getInventory() {
+            return inventory;
+        }
+
+        public String getItemKey(int slot) {
+            return slotToKey.get(slot);
+        }
+    }
+
     // Simple shop inventory GUI
     private static class ShopInventory {
         private final ZombieWaves plugin;
         private final Player player;
-        private org.bukkit.inventory.Inventory inventory;
 
         public ShopInventory(ZombieWaves plugin, Player player) {
             this.plugin = plugin;
@@ -195,16 +210,19 @@ public class ShopManager {
         public void open() {
             Map<String, ShopItem> items = plugin.getShopManager().getShopItems();
             int size = Math.min(54, ((items.size() / 9) + 1) * 9);
-            
-            inventory = Bukkit.createInventory(null, size, "§6§lZombie Shop");
-            
+
+            ShopHolder holder = new ShopHolder();
+            org.bukkit.inventory.Inventory inventory = Bukkit.createInventory(holder, size, "§6§lZombie Shop");
+            holder.inventory = inventory;
+
             int slot = 0;
             for (ShopItem item : items.values()) {
                 if (slot >= size) break;
                 inventory.setItem(slot, item.createItemStack());
+                holder.slotToKey.put(slot, item.getKey());
                 slot++;
             }
-            
+
             player.openInventory(inventory);
         }
     }

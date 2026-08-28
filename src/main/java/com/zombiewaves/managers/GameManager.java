@@ -45,7 +45,7 @@ public class GameManager {
         
         // Check if arena is selected
         if (selectedArena == null) {
-            plugin.getLogger().warning("No arena selected! Use /zwave selectarena <name>");
+            plugin.getLogger().warning("No arena selected! Use /wave selectarena <name>");
             return;
         }
         
@@ -174,6 +174,10 @@ public class GameManager {
 
     public int getCurrentWave() {
         return currentWave;
+    }
+
+    public void setCurrentWave(int wave) {
+        this.currentWave = wave;
     }
 
     public int getMaxWave() {

@@ -76,7 +76,7 @@ public class ScoreboardManager {
         // Info
         Team infoTeam = scoreboard.registerNewTeam("info");
         infoTeam.addEntry(ChatColor.AQUA.toString());
-        infoTeam.setPrefix(plugin.getConfigManager().colorize("§b/zwave leave §7"));
+        infoTeam.setPrefix(plugin.getConfigManager().colorize("§b/wave leave §7"));
         infoTeam.setSuffix(plugin.getConfigManager().colorize("to exit"));
         obj.getScore(ChatColor.AQUA.toString()).setScore(score--);
         

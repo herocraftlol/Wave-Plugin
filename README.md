@@ -1,6 +1,21 @@
 # 🧟 ZombieWaves - Minecraft Plugin
 
-A **Call of Duty Zombies** inspired wave survival plugin for Minecraft 1.21.
+> **Survive the waves of the undead!** ZombieWaves is a **Call of Duty Zombies** inspired
+> wave-survival plugin for Minecraft **1.21**. Team up with friends, fend off endless waves of
+> zombies, skeletons and husks, earn gold, and gear up in the shop to push your survival further.
+
+---
+
+## 🆕 What's new in v1.4.2
+
+- **Fully functional shop** 🔧 — the shop GUI now actually works: click an item to buy it,
+  with your gold deducted and a purchase sound. Items can no longer be picked up or dragged
+  out of the menu.
+- **Unified `/wave` command** 🎮 — join, leave, arenas, shop, gold **and** the admin
+  subcommands (`reload`, `setwave`, `forcewave`, `stop`) are all in one place.
+- **New admin tools** ⚙️ — reload the config on the fly, jump straight to a given wave,
+  or force-start the next wave.
+- **Bug fixes** 🐛 — arena serialization on startup and various polish fixes.
 
 ## ✨ Features
 
@@ -23,70 +38,70 @@ A **Call of Duty Zombies** inspired wave survival plugin for Minecraft 1.21.
 
 ## 📥 Installation
 
-1. Download JAR from [Releases](../../releases)
-2. Place in server's `plugins/` folder
-3. Restart server
+1. Download the latest JAR from [Releases](../../releases)
+2. Place the JAR in your server's `plugins/` folder
+3. Restart the server
 
 ## 🎯 Quick Setup (Admin)
 
 1. **Set lobby and exit locations** (where players spawn/return):
    ```
-   /zwave setlobby         # At your location (global lobby)
-   /zwave setexit          # At your location (return point)
+   /wave setlobby         # At your location (global lobby)
+   /wave setexit          # At your location (return point)
    ```
 
 2. **Create an arena:**
    ```
-   /zwave createarena mymap
+   /wave createarena mymap
    ```
 
 3. **Set arena lobby** (optional - overrides global):
    ```
-   /zwave setlobby mymap   # Set arena-specific lobby
+   /wave setlobby mymap   # Set arena-specific lobby
    ```
 
 4. **Set arena spawn** (where players go when game starts):
    ```
-   /zwave setspawn mymap    # At your location
+   /wave setspawn mymap    # At your location
    ```
 
 5. **Set arena boundaries** (optional):
    ```
-   /zwave setpos1 mymap    # Look at corner 1
-   /zwave setpos2 mymap    # Look at corner 2
+   /wave setpos1 mymap    # Look at corner 1
+   /wave setpos2 mymap    # Look at corner 2
    ```
 
 6. **Add spawn points** (where mobs appear):
    ```
-   /zwave addspawn mymap   # Look at spawn location, repeat
+   /wave addspawn mymap   # Look at spawn location, repeat
    ```
 
 ## 🎮 Player Commands
 
 | Command | Description |
 |---------|-------------|
-| `/zwave join <arena>` | Join an arena (teleport to lobby) |
-| `/zwave leave` | Leave the arena (return to exit) |
-| `/zwave arenas` | List all available arenas |
-| `/zwave status` | Show game/lobby status |
-| `/zwave shop` | Open the shop |
-| `/zwave gold` | Check your gold balance |
+| `/wave join <arena>` | Join an arena (teleport to lobby) |
+| `/wave leave` | Leave the arena (return to exit) |
+| `/wave arenas` | List all available arenas |
+| `/wave status` | Show game/lobby status |
+| `/wave shop` | Open the shop |
+| `/wave gold` | Check your gold balance |
 
 ## 🛠 Admin Commands
 
 | Command | Description |
 |---------|-------------|
-| `/zwave createarena <name>` | Create a new arena |
-| `/zwave deletearena <name>` | Delete an arena |
-| `/zwave infoarena <name>` | Show arena details |
-| `/zwave setlobby [arena]` | Set lobby location |
-| `/zwave setspawn <arena>` | Set game spawn point |
-| `/zwave setexit` | Set exit location |
-| `/zwave setpos1 <arena>` | Set boundary corner 1 |
-| `/zwave setpos2 <arena>` | Set boundary corner 2 |
-| `/zwave addspawn <arena>` | Add mob spawn point |
-| `/zwave removespawn <arena>` | Remove spawn point |
-| `/zwave stop` | Force stop the game |
+| `/wave createarena <name>` | Create a new arena |
+| `/wave deletearena <name>` | Delete an arena |
+| `/wave infoarena <name>` | Show arena details |
+| `/wave setlobby [arena]` | Set lobby location |
+| `/wave setspawn <arena>` | Set game spawn point |
+| `/wave setexit` | Set exit location |
+| `/wave setpos1 <arena>` | Set boundary corner 1 |
+| `/wave setpos2 <arena>` | Set boundary corner 2 |
+| `/wave addspawn <arena>` | Add mob spawn point |
+| `/wave removespawn <arena>` | Remove spawn point |
+| `/wave stop` | Force stop the game |
 
 ## 🔑 Permissions
 
@@ -95,13 +110,13 @@ A **Call of Duty Zombies** inspired wave survival plugin for Minecraft 1.21.
 
 ## 🎯 How It Works
 
-1. **Players join:** `/zwave join mymap`
+1. **Players join:** `/wave join mymap`
 2. **Teleport to lobby** at the arena's lobby location
-3. **Wait for players** (need 2+ to start, max 20)
-4. **Countdown** starts automatically when 2+ players
+3. **Wait for players** (1+ to start, max 20 — solo play supported)
+4. **Countdown** starts automatically
 5. **Game starts:** Players teleport to game spawn
 6. **Survive waves** of zombies, skeletons, and husks
-7. **Leave anytime:** `/zwave leave` returns you to exit
+7. **Leave anytime:** `/wave leave` returns you to exit
 
 ## 🔨 Building
 
@@ -109,7 +124,7 @@ A **Call of Duty Zombies** inspired wave survival plugin for Minecraft 1.21.
 mvn clean package
 ```
 
-JAR in `target/ZombieWaves-1.0.0.jar`
+JAR in `target/ZombieWaves-1.4.2.jar`
 
 ## ⚙️ Configuration (config.yml)
 

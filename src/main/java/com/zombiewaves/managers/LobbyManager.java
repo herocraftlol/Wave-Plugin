@@ -83,7 +83,7 @@ public class LobbyManager {
         player.sendMessage(plugin.getConfigManager().getPrefix() + 
             "§aYou joined arena '" + arena.getName() + "'!");
         player.sendMessage(plugin.getConfigManager().getPrefix() + 
-            "§eUse §f/zwave leave §e to exit the arena.");
+            "§eUse §f/wave leave §e to exit the arena.");
         
         playersInLobby.add(player.getUniqueId());
         plugin.getArenaManager().setPlayerArena(player.getUniqueId(), arenaName);

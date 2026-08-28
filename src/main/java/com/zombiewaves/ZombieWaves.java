@@ -1,13 +1,13 @@
 package com.zombiewaves;
 
 import com.zombiewaves.commands.WaveCommand;
-import com.zombiewaves.commands.WaveAdminCommand;
 import com.zombiewaves.listeners.EntityDeathListener;
 import com.zombiewaves.listeners.EntitySpawnListener;
 import com.zombiewaves.listeners.PlayerJoinListener;
 import com.zombiewaves.listeners.PlayerDeathListener;
 import com.zombiewaves.listeners.PlayerInteractListener;
 import com.zombiewaves.listeners.LobbyListener;
+import com.zombiewaves.listeners.ShopClickListener;
 import com.zombiewaves.managers.ArenaManager;
 import com.zombiewaves.managers.GameManager;
 import com.zombiewaves.managers.LobbyManager;
@@ -53,8 +53,7 @@ public class ZombieWaves extends JavaPlugin {
         lobbyManager = new LobbyManager(this);
         
         // Register commands
-        getCommand("zwave").setExecutor(new WaveCommand(this));
-        getCommand("zwaveadmin").setExecutor(new WaveAdminCommand(this));
+        getCommand("wave").setExecutor(new WaveCommand(this));
         
         // Register listeners
         getServer().getPluginManager().registerEvents(new EntityDeathListener(this), this);
@@ -63,6 +62,7 @@ public class ZombieWaves extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerDeathListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerInteractListener(this), this);
         getServer().getPluginManager().registerEvents(new LobbyListener(this), this);
+        getServer().getPluginManager().registerEvents(new ShopClickListener(this), this);
         
         getLogger().info("ZombieWaves has been enabled!");
     }
