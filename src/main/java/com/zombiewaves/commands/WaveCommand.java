@@ -97,6 +97,8 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
             case "setlobby" -> handleSetLobby(sender, args);
             case "setspawn" -> handleSetSpawn(sender, args);
             case "setexit" -> handleSetExit(sender);
+            case "spectate" -> handleSpectate(sender, args);
+            case "unspectate" -> handleUnspectate(sender);
             // Merged from the former /zwaveadmin command
             case "reload" -> handleReload(sender);
             case "setwave" -> handleSetWave(sender, args);
@@ -433,6 +435,12 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
     }
 
     private void handleListArenas(CommandSender sender) {
+        // Players get the visual GUI (join/spectate); console falls back to a chat list.
+        if (sender instanceof Player player) {
+            plugin.getArenaSelectGUI().open(player);
+            return;
+        }
+
         var arenas = plugin.getArenaManager().getAllArenas();
         if (arenas.isEmpty()) {
             sender.sendMessage(plugin.getConfigManager().getPrefix() + 
@@ -448,6 +456,54 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(status + " §f" + arena.getName() + 
                 " §7(" + players + "/" + max + " players, " + arena.getSpawnPoints().size() + " spawns)");
         }
+    }
+
+    private void handleSpectate(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cThis command can only be used by players!");
+            return;
+        }
+
+        if (args.length < 2) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cUsage: /wave spectate <arenaName>");
+            return;
+        }
+
+        String arenaName = args[1].toLowerCase();
+        Arena arena = plugin.getArenaManager().getArena(arenaName);
+        if (arena == null) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cArena '" + arenaName + "' does not exist!");
+            return;
+        }
+
+        boolean gameHereRunning = plugin.getGameManager().isGameRunning()
+            && arenaName.equalsIgnoreCase(plugin.getGameManager().getSelectedArena());
+        if (!gameHereRunning) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                plugin.getConfigManager().getMessage("nothing-to-spectate"));
+            return;
+        }
+
+        plugin.getSpectatorManager().addSpectator(player, arenaName);
+    }
+
+    private void handleUnspectate(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cThis command can only be used by players!");
+            return;
+        }
+
+        if (!plugin.getSpectatorManager().isSpectating(player)) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cYou are not spectating any arena!");
+            return;
+        }
+
+        plugin.getSpectatorManager().removeSpectator(player);
     }
 
     private void handleSelectArena(CommandSender sender, String[] args) {
@@ -611,7 +667,9 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§e/wave status §7- Show game status");
         sender.sendMessage("§e/wave shop §7- Open the shop");
         sender.sendMessage("§e/wave gold §7- Check your gold");
-        sender.sendMessage("§e/wave arenas §7- List all arenas");
+        sender.sendMessage("§e/wave arenas §7- Open the arena GUI (join / spectate)");
+        sender.sendMessage("§e/wave spectate <arena> §7- Spectate an ongoing game");
+        sender.sendMessage("§e/wave unspectate §7- Leave spectator mode");
         sender.sendMessage("§6§l=== Admin Commands ===");
         sender.sendMessage("§e/wave createarena <name> §7- Create new arena");
         sender.sendMessage("§e/wave setlobby [arena] §7- Set lobby location");
@@ -646,6 +704,8 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
             completions.add("shop");
             completions.add("gold");
             completions.add("arenas");
+            completions.add("spectate");
+            completions.add("unspectate");
             if (sender.hasPermission("zombiewaves.admin")) {
                 completions.add("createarena");
                 completions.add("deletearena");
@@ -674,7 +734,7 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
                 subCmd.equals("addspawn") || subCmd.equals("removespawn") ||
                 subCmd.equals("selectarena") || subCmd.equals("infoarena") ||
                 subCmd.equals("deletearena") || subCmd.equals("setlobby") ||
-                subCmd.equals("setspawn")) {
+                subCmd.equals("setspawn") || subCmd.equals("spectate")) {
                 return plugin.getArenaManager().getAllArenas().stream()
                     .map(Arena::getName)
                     .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))

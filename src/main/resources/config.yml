@@ -173,6 +173,13 @@ scoreboard:
     - "&eNext wave in: &f{next-wave}s"
     - "&7&m---------------"
 
+# Spectator settings
+spectator:
+  # Maximum distance (blocks) a spectator can wander from the spectate point
+  # before being teleported back. Only used as a fallback when the arena has
+  # no defined boundaries.
+  max-distance: 60
+
 # Messages
 messages:
   prefix: "&6&l[ZombieWaves] &r"
@@ -185,6 +192,12 @@ messages:
   purchase-success: "&aPurchase successful!"
   purchase-failed: "&cPurchase failed!"
   no-wave-running: "&cNo wave is currently running!"
+  now-spectating: "&aYou are now spectating arena &e{arena}&a! Right-click the barrier or use /wave unspectate to leave."
+  stopped-spectating: "&7You are no longer spectating."
+  already-spectating: "&cYou are already spectating an arena! Use /wave unspectate first."
+  cannot-spectate-own-game: "&cYou can't spectate while you're in a lobby or playing. Use /wave leave first."
+  no-spectate-location: "&cThis arena has no spawn point configured yet, can't spectate it."
+  nothing-to-spectate: "&cThis arena doesn't have an ongoing game to spectate."
 
 # Permissions
 permissions:

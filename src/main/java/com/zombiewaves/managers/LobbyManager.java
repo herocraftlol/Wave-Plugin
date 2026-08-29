@@ -266,7 +266,34 @@ public class LobbyManager {
     private void startGame(String arenaName) {
         Arena arena = plugin.getArenaManager().getArena(arenaName);
         if (arena == null) return;
-        
+
+        // ZombieWaves ne fait tourner qu'UNE SEULE partie à la fois sur tout le
+        // serveur (GameManager est global, pas par arène). Sans ce garde-fou,
+        // le countdown de cette arène retombait à 0 puis ne se passait
+        // silencieusement RIEN si une autre arène avait déjà une partie en
+        // cours (GameManager#startGame() l'ignore). On prévient les joueurs et
+        // on réessaie automatiquement dès que la partie en cours se termine.
+        if (plugin.getGameManager().isGameRunning()) {
+            broadcastToArena(arenaName, plugin.getConfigManager().getPrefix() +
+                "§eAnother game is already in progress on the server. Yours will start as soon as it ends...");
+            BukkitRunnable retry = new BukkitRunnable() {
+                @Override
+                public void run() {
+                    if (getPlayerCount(arenaName) < 1) {
+                        // Plus personne en attente, inutile de continuer à réessayer
+                        cancel();
+                        return;
+                    }
+                    if (!plugin.getGameManager().isGameRunning()) {
+                        cancel();
+                        startGame(arenaName);
+                    }
+                }
+            };
+            retry.runTaskTimer(plugin, 100L, 100L); // vérifie toutes les 5 secondes
+            return;
+        }
+
         broadcastToArena(arenaName, plugin.getConfigManager().getPrefix() + 
             "§6§lGAME STARTING! GET READY!");
         
@@ -347,5 +374,24 @@ public class LobbyManager {
     
     public int getLobbyPlayerCount() {
         return playersInLobby.size();
+    }
+
+    /**
+     * Nettoyage silencieux (pas de téléportation ni message) quand un joueur
+     * en lobby se déconnecte. Sans cela, playersInLobby/playerArenas et la
+     * position pré-lobby du joueur restaient bloqués indéfiniment.
+     */
+    public void handleQuit(Player player) {
+        UUID id = player.getUniqueId();
+        if (!playersInLobby.remove(id)) return;
+
+        String arenaName = plugin.getArenaManager().getPlayerArena(id);
+        plugin.getArenaManager().removePlayerArena(id);
+        playerPreviousLocations.remove(id);
+        lobbyCountdowns.remove(id);
+
+        if (arenaName != null) {
+            checkAndStopCountdown(arenaName);
+        }
     }
 }

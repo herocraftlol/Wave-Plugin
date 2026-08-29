@@ -52,6 +52,11 @@ public class ConfigManager {
         return config.getInt("general.grace-period", 60);
     }
 
+    // Spectator settings
+    public double getSpectatorMaxDistance() {
+        return config.getDouble("spectator.max-distance", 60);
+    }
+
     // Wave settings
     public int getBaseMobs() {
         return config.getInt("waves.base-mobs", 5);
