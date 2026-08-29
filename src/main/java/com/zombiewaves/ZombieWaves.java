@@ -7,7 +7,6 @@ import com.zombiewaves.listeners.EntitySpawnListener;
 import com.zombiewaves.listeners.PlayerJoinListener;
 import com.zombiewaves.listeners.PlayerQuitListener;
 import com.zombiewaves.listeners.PlayerDeathListener;
-import com.zombiewaves.listeners.PlayerInteractListener;
 import com.zombiewaves.listeners.LobbyListener;
 import com.zombiewaves.listeners.ShopClickListener;
 import com.zombiewaves.listeners.ArenaSelectGUIListener;
@@ -69,7 +68,6 @@ public class ZombieWaves extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerQuitListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerDeathListener(this), this);
-        getServer().getPluginManager().registerEvents(new PlayerInteractListener(this), this);
         getServer().getPluginManager().registerEvents(new LobbyListener(this), this);
         getServer().getPluginManager().registerEvents(new ShopClickListener(this), this);
         getServer().getPluginManager().registerEvents(spectatorManager, this);
@@ -107,6 +105,7 @@ public class ZombieWaves extends JavaPlugin {
         reloadConfig();
         configManager.reload();
         arenaManager.loadArenas();
+        shopManager.reloadShopItems();
         if (gameManager != null) {
             gameManager.reload();
         }

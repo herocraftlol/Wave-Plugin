@@ -19,7 +19,6 @@ public class ArenaManager {
     private final Map<UUID, Location> playerPos2;
     private Location globalLobbyLocation;
     private Location globalExitLocation;
-    private final int maxPlayersPerArena = 20;
     private final File arenasFile;
 
     public ArenaManager(ZombieWaves plugin) {
@@ -136,6 +135,14 @@ public class ArenaManager {
         saveArenas();
     }
 
+    /** Deactivates every arena without activating a new one (game ended / arena reset). */
+    public void clearActiveArena() {
+        for (Arena arena : arenas.values()) {
+            arena.setActive(false);
+        }
+        saveArenas();
+    }
+
     public Collection<Arena> getAllArenas() {
         return arenas.values();
     }
@@ -168,11 +175,29 @@ public class ArenaManager {
     }
 
     public int getMaxPlayersPerArena() {
-        return maxPlayersPerArena;
+        return plugin.getConfigManager().getDefaultMaxPlayers();
+    }
+
+    /** Effective max players for a specific arena: its own override if set, else the global default. */
+    public int getMaxPlayersPerArena(String arenaName) {
+        Arena arena = getArena(arenaName);
+        if (arena != null && arena.getMaxPlayers() > 0) {
+            return arena.getMaxPlayers();
+        }
+        return getMaxPlayersPerArena();
+    }
+
+    /** Effective min players for a specific arena: its own override if set, else the global default. */
+    public int getMinPlayersPerArena(String arenaName) {
+        Arena arena = getArena(arenaName);
+        if (arena != null && arena.getMinPlayers() > 0) {
+            return arena.getMinPlayers();
+        }
+        return plugin.getConfigManager().getMinPlayers();
     }
 
     public boolean isArenaFull(String arenaName) {
-        return getPlayerCountInArena(arenaName) >= maxPlayersPerArena;
+        return getPlayerCountInArena(arenaName) >= getMaxPlayersPerArena(arenaName);
     }
 
     // Global locations
@@ -263,6 +288,41 @@ public class ArenaManager {
             arena.setGameSpawnLocation(location);
             saveArenas();
         }
+    }
+
+    public boolean setArenaMinPlayers(String arenaName, int minPlayers) {
+        Arena arena = getArena(arenaName);
+        if (arena == null) return false;
+        arena.setMinPlayers(minPlayers);
+        saveArenas();
+        return true;
+    }
+
+    public boolean setArenaMaxPlayers(String arenaName, int maxPlayers) {
+        Arena arena = getArena(arenaName);
+        if (arena == null) return false;
+        arena.setMaxPlayers(maxPlayers);
+        saveArenas();
+        return true;
+    }
+
+    /** Pass an empty list to reset the arena back to "use every globally configured mob type". */
+    public boolean setArenaMobTypes(String arenaName, List<String> mobTypes) {
+        Arena arena = getArena(arenaName);
+        if (arena == null) return false;
+        arena.setMobTypes(mobTypes);
+        saveArenas();
+        return true;
+    }
+
+    /** Pass -1 for either value to reset it back to the global config default. */
+    public boolean setArenaMobCounts(String arenaName, int baseMobs, int mobIncreasePerWave) {
+        Arena arena = getArena(arenaName);
+        if (arena == null) return false;
+        arena.setBaseMobs(baseMobs);
+        arena.setMobIncreasePerWave(mobIncreasePerWave);
+        saveArenas();
+        return true;
     }
 
     private String locToString(Location loc) {

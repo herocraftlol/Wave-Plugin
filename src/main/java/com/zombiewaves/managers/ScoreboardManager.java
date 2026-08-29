@@ -95,7 +95,7 @@ public class ScoreboardManager {
         
         // Update player count
         int playerCount = plugin.getLobbyManager().getPlayerCount(arenaName);
-        int maxPlayers = plugin.getLobbyManager().getMaxPlayers();
+        int maxPlayers = plugin.getLobbyManager().getMaxPlayers(arenaName);
         
         Team playersTeam = scoreboard.getTeam("players");
         if (playersTeam != null) {

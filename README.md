@@ -4,30 +4,40 @@
 > **survie par vagues** pour Minecraft **1.21**, inspiré du mode **Zombies
 > de Call of Duty**. Affrontez des vagues toujours plus dures de zombies,
 > de squelettes et de husks, gagnez de l'or et équipez-vous dans la boutique
-> pour repousser toujours plus loin vos limites — seul ou en équipe
-> (jusqu'à 20 joueurs).
+> pour repousser toujours plus loin vos limites — seul ou en équipe.
+
 
 ---
 
-## 🆕 Nouveautés de la v1.4.3
+## 🆕 Nouveautés de la v1.5.0
 
-- **🖥️ GUI de sélection des arènes** — la commande `/wave arenas` ouvre désormais
-  une interface graphique en jeu : cliquez sur une arène pour la rejoindre,
-  sur une partie en cours pour la **spectater**, ou sur le bouton ⭐ pour être
-  envoyé dans une arène aléatoire (plusieurs pages supportées !).
-- **👀 Mode spectateur** — regardez une partie en cours sans interférer :
-  `/wave spectate <arène>` ou cliquez sur l'arène concernée dans le GUI.
+- **🎛️ Arènes hautement personnalisables** — chaque arène possède désormais
+  ses propres réglages : joueurs min/max (`/wave setminplayers`, `/wave setmaxplayers`),
+  formule de vagues (`/wave setarenawaves <arène> <base> <incrément>`) et
+  **liste de mobs** (`/wave setarenamobs <arène> zombie,skeleton,...`). Tout est
+  optionnel : par défaut, chaque arène reprend les valeurs globales de `config.yml`.
+- **⚖️ Boutique à prix dynamiques** — les prix de la boutique sont désormais
+  calculés automatiquement à partir de l'or réellement gagné par kill
+  (`kills:` dans `config.yml` au lieu de prix fixes) : rééquilibrez vos mobs
+  et les prix suivent, sans retouche manuelle.
 
-  Vous êtes téléportés près de l'arène en mode spectateur, avec une barrière
-  pour quitter (`/wave unspectate`); un garde-fou vous ramène à l'arène
-  si vous vous en éloignez trop.
-- **🛡️ Anti-démarrage de partie simultanée** — si une autre partie est déjà
-  en cours sur le serveur, les joueurs en lobby sont prévenus et la partie
-  démarre automatiquement dès que celle-ci se termine (plus de partie "fantôme"
-  qui ne se lance jamais).
-- **🧹 Nettoyage à la déconnexion** — un joueur qui se déconnecte en lobby
-  n'y reste plus bloqué : ses données sont nettoyées proprement, il peut
-  se reconnecter et rejouer immédiatement.
+- **🧠 Sélection de mobs pondérée** — le spawn n'est plus tiré au hasard uniforme :
+  le poids de spawn de chaque type est combiné à sa puissance (santé × dégâts,,
+  si bien que les vagues restent équilibrées et variées à mesure que la difficulté monte.
+
+- **🪙 Or attribué avec précision** — la récompense en or utilise désormais le type
+  de mob exact avec lequel il a été généré (plus de devinette basée sur l'apparence,
+  même si deux types partagent le même `EntityType`).
+- **🚪 Items de lobby fiables** — la barrière **quitter l'arène** (pour tout le monde)
+  et le diamant **force-start** (admin, retourné à la case 0 avec garde-fou anti-drop))
+  sont identifiés par des données persistantes : clics et chutes accidentelles
+  sont gérés proprement.
+
+- **🧹 Nettoyage renforcé** — un joueur qui quitte ou se déconnecte (en lobby
+  comme en pleine partie) est retiré proprement : plus de joueur fantôme,
+  et si le dernier joueur quitte, la partie s'arrête et l'arène se réinitialise
+  immédiatement pour une nouvelle partie.
+
 
 ---
 
@@ -40,11 +50,12 @@
 | 🎮 **Système de lobby** | Rejoignez une arène avec compte à rebours, jusqu'à 20 joueurs |
 | 🖥️ **GUI d'arènes** | Interface en jeu pour rejoindre, spectater ou choisir une arène aléatoire |
 | 👀 **Mode spectateur** | Observez une partie en cours sans perturber les joueurs |
+| 🎛️ **Arènes personnalisables** | Joueurs min/max, formule de vagues et liste de mobs par arène |
 | 🚪 **Téléportation auto** | Lobby avant la partie, retour à la sortie après |
 | 🎲 **Spawn aléatoire** | Les mobs apparaissent à des endroits et types aléatoires |
 | 📈 **Difficulté évolutive** | Santé, dégâts et vitesse augmentent à chaque vague |
 | 🪙 **Système d'or** | Gagnez de l'or en tuant des mobs |
-| 🛒 **Boutique** | Achetez armes, armures et améliorations |
+| 🛒 **Boutique** | Achetez armes, armures et améliorations (prix dynamiques équilibrés) |
 | 📋 **Scoreboard** | Panneau latéral: vague, kills, or, mobs restants |
 
 ## 🎮 Mobs supportés
@@ -120,6 +131,10 @@
 | `/wave setpos2 <arène>` | Définir le coin 2 |
 | `/wave addspawn <arène>` | Ajouter un point de spawn de mobs |
 | `/wave removespawn <arène>` | Retirer un point de spawn |
+| `/wave setminplayers <arène> <n>` | Définir le nombre minimum de joueurs (0 = valeur globale) |
+| `/wave setmaxplayers <arène> <n>` | Définir le nombre maximum de joueurs (0 = valeur globale) |
+| `/wave setarenamobs <arène> [types]` | Définir les mobs autorisés dans l'arène (liste vide = tous les types) |
+| `/wave setarenawaves <arène> <base> <inc>` | Définir la formule de mobs par vague de l'arène (-1 = valeur globale) |
 | `/wave reload` | Recharger la configuration |
 | `/wave setwave <n>` | Définir la vague courante |
 | `/wave forcewave` | Lancer de force la prochaine vague |
@@ -134,7 +149,7 @@
 
 1. **Rejoignez:** `/wave join monmap`
 2. **Téléportation au lobby** à l'emplacement de lobby de l'arène
-3. **Attendez les joueurs** (1+ pour démarrer, max 20 — solo supporté)
+3. **Attendez les joueurs** (min 1 par défaut, max 20 — solo supporté, réglable par arène)
 4. **Compte à rebours** démarre automatiquement
 5. **La partie démarre:** les joueurs sont téléportés au spawn du jeu
 6. **Survivez aux vagues** de zombies, de squelettes et de husks
@@ -146,4 +161,4 @@
 mvn clean package
 ```
 
-Le JAR se trouve dans `target/ZombieWaves-1.4.3.jar`
+Le JAR se trouve dans `target/ZombieWaves-1.5.0.jar`

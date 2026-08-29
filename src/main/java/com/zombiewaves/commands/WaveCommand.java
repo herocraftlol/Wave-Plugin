@@ -99,6 +99,10 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
             case "setexit" -> handleSetExit(sender);
             case "spectate" -> handleSpectate(sender, args);
             case "unspectate" -> handleUnspectate(sender);
+            case "setminplayers" -> handleSetMinPlayers(sender, args);
+            case "setmaxplayers" -> handleSetMaxPlayers(sender, args);
+            case "setarenamobs" -> handleSetArenaMobs(sender, args);
+            case "setarenawaves" -> handleSetArenaWaves(sender, args);
             // Merged from the former /zwaveadmin command
             case "reload" -> handleReload(sender);
             case "setwave" -> handleSetWave(sender, args);
@@ -123,7 +127,7 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
             for (var arena : plugin.getArenaManager().getAllArenas()) {
                 String status = arena.isComplete() ? "§a✓" : "§c✗";
                 int players = plugin.getArenaManager().getPlayerCountInArena(arena.getName());
-                int max = plugin.getArenaManager().getMaxPlayersPerArena();
+                int max = plugin.getArenaManager().getMaxPlayersPerArena(arena.getName());
                 sender.sendMessage("  " + status + " §f" + arena.getName() + " §7(" + players + "/" + max + ")");
             }
             return;
@@ -225,11 +229,140 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
 
     private void sendLobbyStatus(Player player) {
         String arenaName = plugin.getLobbyManager().getPlayerArenaName(player);
+        int min = plugin.getArenaManager().getMinPlayersPerArena(arenaName);
         
         player.sendMessage("§6§l=== Lobby: " + arenaName + " ===");
         player.sendMessage("§ePlayers: §f" + plugin.getLobbyManager().getPlayerCount(arenaName) + 
-            "§e/§f" + plugin.getLobbyManager().getMaxPlayers());
-        player.sendMessage("§eWaiting for players... (need 2 to start)");
+            "§e/§f" + plugin.getLobbyManager().getMaxPlayers(arenaName));
+        player.sendMessage("§eWaiting for players... (need " + min + " to start)");
+    }
+
+    private void handleSetMinPlayers(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("zombiewaves.admin")) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                plugin.getConfigManager().getMessage("no-permission"));
+            return;
+        }
+        if (args.length < 3) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cUsage: /wave setminplayers <arena> <amount> §7(0 = use global default)");
+            return;
+        }
+        String arenaName = args[1].toLowerCase();
+        int amount;
+        try {
+            amount = Integer.parseInt(args[2]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + "§cInvalid number!");
+            return;
+        }
+        if (!plugin.getArenaManager().setArenaMinPlayers(arenaName, amount)) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cArena '" + arenaName + "' does not exist!");
+            return;
+        }
+        sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+            "§aMinimum players for '" + arenaName + "' set to §f" + 
+            plugin.getArenaManager().getMinPlayersPerArena(arenaName));
+    }
+
+    private void handleSetMaxPlayers(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("zombiewaves.admin")) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                plugin.getConfigManager().getMessage("no-permission"));
+            return;
+        }
+        if (args.length < 3) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cUsage: /wave setmaxplayers <arena> <amount> §7(0 = use global default)");
+            return;
+        }
+        String arenaName = args[1].toLowerCase();
+        int amount;
+        try {
+            amount = Integer.parseInt(args[2]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + "§cInvalid number!");
+            return;
+        }
+        if (!plugin.getArenaManager().setArenaMaxPlayers(arenaName, amount)) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cArena '" + arenaName + "' does not exist!");
+            return;
+        }
+        sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+            "§aMaximum players for '" + arenaName + "' set to §f" + 
+            plugin.getArenaManager().getMaxPlayersPerArena(arenaName));
+    }
+
+    private void handleSetArenaMobs(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("zombiewaves.admin")) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                plugin.getConfigManager().getMessage("no-permission"));
+            return;
+        }
+        if (args.length < 2) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cUsage: /wave setarenamobs <arena> [type1,type2,...] §7(no list = reset to all types)");
+            sender.sendMessage("§7Available mob types: §f" + 
+                plugin.getConfigManager().getAllMobTypes().stream()
+                    .map(com.zombiewaves.utils.ConfigManager.MobTypeConfig::getName)
+                    .collect(Collectors.joining(", ")));
+            return;
+        }
+        String arenaName = args[1].toLowerCase();
+        if (!plugin.getArenaManager().arenaExists(arenaName)) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cArena '" + arenaName + "' does not exist!");
+            return;
+        }
+
+        List<String> types = new ArrayList<>();
+        if (args.length >= 3) {
+            for (String type : args[2].split(",")) {
+                String key = type.trim().toLowerCase();
+                if (!key.isEmpty()) types.add(key);
+            }
+        }
+
+        plugin.getArenaManager().setArenaMobTypes(arenaName, types);
+        if (types.isEmpty()) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§aArena '" + arenaName + "' will now use every configured mob type.");
+        } else {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§aMob types for '" + arenaName + "' set to: §f" + String.join(", ", types));
+        }
+    }
+
+    private void handleSetArenaWaves(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("zombiewaves.admin")) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                plugin.getConfigManager().getMessage("no-permission"));
+            return;
+        }
+        if (args.length < 4) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cUsage: /wave setarenawaves <arena> <baseMobs> <increasePerWave> §7(-1 -1 = use global defaults)");
+            return;
+        }
+        String arenaName = args[1].toLowerCase();
+        int baseMobs;
+        int increase;
+        try {
+            baseMobs = Integer.parseInt(args[2]);
+            increase = Integer.parseInt(args[3]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + "§cInvalid number!");
+            return;
+        }
+        if (!plugin.getArenaManager().setArenaMobCounts(arenaName, baseMobs, increase)) {
+            sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§cArena '" + arenaName + "' does not exist!");
+            return;
+        }
+        sender.sendMessage(plugin.getConfigManager().getPrefix() + 
+            "§aMob wave formula for '" + arenaName + "' updated (base=" + baseMobs + ", increase=" + increase + ").");
     }
 
     private void handleSetPos1(CommandSender sender, String[] args) {
@@ -452,7 +585,7 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
         for (Arena arena : arenas) {
             String status = arena.isComplete() ? "§a✓" : "§c✗";
             int players = plugin.getArenaManager().getPlayerCountInArena(arena.getName());
-            int max = plugin.getArenaManager().getMaxPlayersPerArena();
+            int max = plugin.getArenaManager().getMaxPlayersPerArena(arena.getName());
             sender.sendMessage(status + " §f" + arena.getName() + 
                 " §7(" + players + "/" + max + " players, " + arena.getSpawnPoints().size() + " spawns)");
         }
@@ -553,10 +686,11 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
         }
         
         int players = plugin.getArenaManager().getPlayerCountInArena(arenaName);
-        int max = plugin.getArenaManager().getMaxPlayersPerArena();
+        int max = plugin.getArenaManager().getMaxPlayersPerArena(arenaName);
+        int min = plugin.getArenaManager().getMinPlayersPerArena(arenaName);
         
         sender.sendMessage("§6§l=== Arena: " + arena.getName() + " ===");
-        sender.sendMessage("§ePlayers: §f" + players + "/" + max);
+        sender.sendMessage("§ePlayers: §f" + players + "/" + max + " §7(min " + min + ")");
         sender.sendMessage("§eStatus: §f" + (arena.isComplete() ? "§aReady" : "§cIncomplete"));
         
         if (arena.getLobbyLocation() != null) {
@@ -587,6 +721,12 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
         for (int i = 0; i < arena.getSpawnPoints().size(); i++) {
             sender.sendMessage("§e  " + (i + 1) + ". §f" + formatLocation(arena.getSpawnPoints().get(i)));
         }
+        
+        String mobTypesStr = arena.getMobTypes().isEmpty() ? "§7(all configured types)" : String.join(", ", arena.getMobTypes());
+        sender.sendMessage("§eMob types: §f" + mobTypesStr);
+        String baseMobsStr = arena.getBaseMobs() >= 0 ? String.valueOf(arena.getBaseMobs()) : "§7(default: " + plugin.getConfigManager().getBaseMobs() + ")";
+        String increaseStr = arena.getMobIncreasePerWave() >= 0 ? String.valueOf(arena.getMobIncreasePerWave()) : "§7(default: " + plugin.getConfigManager().getMobIncreasePerWave() + ")";
+        sender.sendMessage("§eBase mobs: §f" + baseMobsStr + " §e| Increase/wave: §f" + increaseStr);
     }
 
     private Location getTargetBlock(Player player) {
@@ -683,6 +823,10 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§e/wave setwave <n> §7- Check current wave");
         sender.sendMessage("§e/wave forcewave §7- Force next wave");
         sender.sendMessage("§e/wave stop §7- Stop the game");
+        sender.sendMessage("§e/wave setminplayers <arena> <n> §7- Set min players (0=default)");
+        sender.sendMessage("§e/wave setmaxplayers <arena> <n> §7- Set max players (0=default)");
+        sender.sendMessage("§e/wave setarenamobs <arena> [types] §7- Set arena's mob roster");
+        sender.sendMessage("§e/wave setarenawaves <arena> <base> <inc> §7- Set mob count formula");
     }
 
     private void sendStatus(CommandSender sender) {
@@ -721,6 +865,10 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
                 completions.add("reload");
                 completions.add("setwave");
                 completions.add("forcewave");
+                completions.add("setminplayers");
+                completions.add("setmaxplayers");
+                completions.add("setarenamobs");
+                completions.add("setarenawaves");
             }
             
             return completions.stream()
@@ -734,7 +882,9 @@ public class WaveCommand implements CommandExecutor, TabCompleter {
                 subCmd.equals("addspawn") || subCmd.equals("removespawn") ||
                 subCmd.equals("selectarena") || subCmd.equals("infoarena") ||
                 subCmd.equals("deletearena") || subCmd.equals("setlobby") ||
-                subCmd.equals("setspawn") || subCmd.equals("spectate")) {
+                subCmd.equals("setspawn") || subCmd.equals("spectate") ||
+                subCmd.equals("setminplayers") || subCmd.equals("setmaxplayers") ||
+                subCmd.equals("setarenamobs") || subCmd.equals("setarenawaves")) {
                 return plugin.getArenaManager().getAllArenas().stream()
                     .map(Arena::getName)
                     .filter(s -> s.toLowerCase().startsWith(args[1].toLowerCase()))

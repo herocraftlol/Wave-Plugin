@@ -1,10 +1,11 @@
 name: ZombieWaves
-version: 1.4.3
+version: 1.5.0
 main: com.zombiewaves.ZombieWaves
 api-version: '1.21'
-description: A Call of Duty Zombies inspired wave survival plugin
+description: ZombieWaves - Survive co-op waves of zombies, skeletons and husks for Minecraft 1.21, inspired by Call of Duty Zombies. Earn gold, buy gear at the shop and push your limits.
+
 author: ZombieWavesTeam
 commands:
   wave:
-    description: Main command for ZombieWaves (player + admin subcommands)
-    usage: /<command> <join|leave|arenas|selectarena|spectate|unspectate|shop|gold|reload|setwave|stop>
+    description: Main command for ZombieWaves (player + admin subcommands).
+    usage: /<command> <join|leave|arenas|selectarena|spectate|unspectate|shop|gold|status|infoarena|createarena|deletearena|setlobby|setspawn|setexit|setpos1|setpos2|addspawn|removespawn|setminplayers|setmaxplayers|setarenamobs|setarenawaves|reload|setwave|forcewave|stop>

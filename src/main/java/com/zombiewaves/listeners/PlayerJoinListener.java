@@ -19,11 +19,10 @@ public class PlayerJoinListener implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         
-        // Initialize player data
-        plugin.getGameManager().onPlayerJoin(player);
-        
-        // Create scoreboard if game is running
-        if (plugin.getGameManager().isGameRunning()) {
+        // Only relevant if this player was already tracked as an active in-game player
+        // (e.g. a very fast reconnect before PlayerQuitListener's cleanup ran). A normal
+        // new/returning player gets nothing here - they must /wave join like anyone else.
+        if (plugin.getGameManager().isActivePlayer(player)) {
             plugin.getScoreboardManager().onPlayerJoin(player);
         }
     }

@@ -2,11 +2,12 @@ package com.zombiewaves.listeners;
 
 import com.zombiewaves.ZombieWaves;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 
@@ -18,55 +19,57 @@ public class LobbyListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
 
         Player player = event.getPlayer();
-        
-        // Check if player is in lobby
         if (!plugin.getLobbyManager().isInArena(player)) {
             return;
         }
 
         ItemStack item = event.getItem();
-        if (item == null || item.getType() != Material.DIAMOND) {
+
+        // Barrier: leave the lobby (available to everyone)
+        if (plugin.getLobbyManager().isLeaveItem(item)) {
+            event.setCancelled(true);
+            plugin.getLobbyManager().leaveArena(player);
             return;
         }
 
-        // Check if it's our force start diamond
-        if (!item.hasItemMeta() || !item.getItemMeta().hasDisplayName()) {
-            return;
-        }
+        // Diamond: force start immediately (admins only)
+        if (plugin.getLobbyManager().isForceStartItem(item)) {
+            event.setCancelled(true);
 
-        String displayName = item.getItemMeta().getDisplayName();
-        if (!displayName.contains("FORCE START")) {
-            return;
-        }
+            if (!player.hasPermission("zombiewaves.admin")) {
+                player.sendMessage(plugin.getConfigManager().getPrefix() + 
+                    "§cYou don't have permission to force start!");
+                return;
+            }
 
-        // Check permission
-        if (!player.hasPermission("zombiewaves.admin")) {
-            player.sendMessage(plugin.getConfigManager().getPrefix() + 
-                "§cYou don't have permission to force start!");
-            return;
+            String arenaName = plugin.getLobbyManager().getPlayerArenaName(player);
+            if (arenaName != null) {
+                plugin.getLobbyManager().stopArenaCountdownForAdmin(arenaName);
+                
+                Bukkit.broadcastMessage(plugin.getConfigManager().getPrefix() + 
+                    "§6§l" + player.getName() + " §eforced the game to start!");
+                
+                plugin.getLobbyManager().startGameNow(arenaName);
+            }
         }
+    }
 
-        // Force start the game
-        String arenaName = plugin.getLobbyManager().getPlayerArenaName(player);
-        if (arenaName != null) {
-            // Cancel existing countdown
-            plugin.getLobbyManager().stopArenaCountdownForAdmin(arenaName);
-            
-            // Broadcast
-            Bukkit.broadcastMessage(plugin.getConfigManager().getPrefix() + 
-                "§6§l" + player.getName() + " §eforced the game to start!");
-            
-            // Start game immediately
-            plugin.getLobbyManager().startGameNow(arenaName);
+    /** Prevents dropping the lobby's leave/force-start items by accident. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onDropItem(PlayerDropItemEvent event) {
+        Player player = event.getPlayer();
+        if (!plugin.getLobbyManager().isInArena(player)) return;
+
+        ItemStack item = event.getItemDrop().getItemStack();
+        if (plugin.getLobbyManager().isLeaveItem(item) || plugin.getLobbyManager().isForceStartItem(item)) {
+            event.setCancelled(true);
         }
-
-        event.setCancelled(true);
     }
 }

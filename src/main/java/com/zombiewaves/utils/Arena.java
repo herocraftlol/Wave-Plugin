@@ -19,6 +19,13 @@ public class Arena implements ConfigurationSerializable {
     private Location gameSpawnLocation;
     private boolean active;
 
+    // Per-arena overrides (0/-1/empty = "use the global config default", set via /wave commands)
+    private int minPlayers = 0;
+    private int maxPlayers = 0;
+    private int baseMobs = -1;
+    private int mobIncreasePerWave = -1;
+    private final List<String> mobTypes = new ArrayList<>();
+
     public Arena(String name) {
         this.name = name;
         this.spawnPoints = new ArrayList<>();
@@ -93,6 +100,54 @@ public class Arena implements ConfigurationSerializable {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    // ── Per-arena wave/player overrides (0/-1/empty = use global config default) ──
+
+    public int getMinPlayers() {
+        return minPlayers;
+    }
+
+    public void setMinPlayers(int minPlayers) {
+        this.minPlayers = Math.max(0, minPlayers);
+    }
+
+    public int getMaxPlayers() {
+        return maxPlayers;
+    }
+
+    public void setMaxPlayers(int maxPlayers) {
+        this.maxPlayers = Math.max(0, maxPlayers);
+    }
+
+    public int getBaseMobs() {
+        return baseMobs;
+    }
+
+    public void setBaseMobs(int baseMobs) {
+        this.baseMobs = baseMobs;
+    }
+
+    public int getMobIncreasePerWave() {
+        return mobIncreasePerWave;
+    }
+
+    public void setMobIncreasePerWave(int mobIncreasePerWave) {
+        this.mobIncreasePerWave = mobIncreasePerWave;
+    }
+
+    /** Empty list means "use every mob type defined in config.yml's mob-types section". */
+    public List<String> getMobTypes() {
+        return mobTypes;
+    }
+
+    public void setMobTypes(List<String> types) {
+        mobTypes.clear();
+        if (types != null) {
+            for (String t : types) {
+                if (t != null && !t.isBlank()) mobTypes.add(t.toLowerCase());
+            }
+        }
     }
 
     public boolean isComplete() {
@@ -172,6 +227,11 @@ public class Arena implements ConfigurationSerializable {
         map.put("lobbyLocation", lobbyLocation != null ? locToString(lobbyLocation) : null);
         map.put("gameSpawnLocation", gameSpawnLocation != null ? locToString(gameSpawnLocation) : null);
         map.put("active", active);
+        map.put("minPlayers", minPlayers);
+        map.put("maxPlayers", maxPlayers);
+        map.put("baseMobs", baseMobs);
+        map.put("mobIncreasePerWave", mobIncreasePerWave);
+        map.put("mobTypes", mobTypes);
         return map;
     }
 
@@ -200,6 +260,23 @@ public class Arena implements ConfigurationSerializable {
         }
         if (map.containsKey("active")) {
             arena.setActive((Boolean) map.get("active"));
+        }
+        if (map.containsKey("minPlayers")) {
+            arena.setMinPlayers(((Number) map.get("minPlayers")).intValue());
+        }
+        if (map.containsKey("maxPlayers")) {
+            arena.setMaxPlayers(((Number) map.get("maxPlayers")).intValue());
+        }
+        if (map.containsKey("baseMobs")) {
+            arena.setBaseMobs(((Number) map.get("baseMobs")).intValue());
+        }
+        if (map.containsKey("mobIncreasePerWave")) {
+            arena.setMobIncreasePerWave(((Number) map.get("mobIncreasePerWave")).intValue());
+        }
+        if (map.containsKey("mobTypes")) {
+            @SuppressWarnings("unchecked")
+            List<String> types = (List<String>) map.get("mobTypes");
+            arena.setMobTypes(types);
         }
         
         return arena;

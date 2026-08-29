@@ -7,7 +7,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class GameManager {
@@ -17,6 +19,7 @@ public class GameManager {
     private int currentWave = 0;
     private String selectedArena = null;
     private final Map<UUID, PlayerData> playerDataMap = new HashMap<>();
+    private final Set<UUID> activePlayers = new HashSet<>();
     private BukkitRunnable countdownTask;
     private int countdownSeconds;
 
@@ -40,7 +43,12 @@ public class GameManager {
         this.selectedArena = arenaName;
     }
 
-    public void startGame() {
+    /**
+     * Starts the game with exactly the given set of players (the ones who were in this
+     * arena's lobby). Only these players get PlayerData/gold/kill tracking and the game
+     * scoreboard - not every player currently online on the server.
+     */
+    public void startGame(Set<UUID> players) {
         if (gameRunning) return;
         
         // Check if arena is selected
@@ -52,10 +60,11 @@ public class GameManager {
         gameRunning = true;
         currentWave = 0;
         playerDataMap.clear();
+        activePlayers.clear();
+        activePlayers.addAll(players);
         
-        // Initialize player data for all online players
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            playerDataMap.put(player.getUniqueId(), new PlayerData());
+        for (UUID id : players) {
+            playerDataMap.put(id, new PlayerData());
         }
         
         // Broadcast start message
@@ -70,6 +79,8 @@ public class GameManager {
     public void stopGame() {
         gameRunning = false;
         currentWave = 0;
+        selectedArena = null;
+        activePlayers.clear();
         
         if (countdownTask != null) {
             countdownTask.cancel();
@@ -81,6 +92,34 @@ public class GameManager {
         
         // Reset player data
         playerDataMap.clear();
+        
+        // Free up every arena's "active" flag so a new one can start
+        plugin.getArenaManager().clearActiveArena();
+    }
+
+    public boolean isActivePlayer(Player player) {
+        return activePlayers.contains(player.getUniqueId());
+    }
+
+    public int getActivePlayerCount() {
+        return activePlayers.size();
+    }
+
+    /**
+     * Removes a player from the running game (they used /wave leave mid-game, or
+     * disconnected). If they were the last one left, the game auto-stops and the arena
+     * resets so it's immediately available for a new lobby.
+     */
+    public void removePlayer(Player player) {
+        UUID id = player.getUniqueId();
+        if (!activePlayers.remove(id)) return;
+        playerDataMap.remove(id);
+
+        if (gameRunning && activePlayers.isEmpty()) {
+            Bukkit.broadcastMessage(plugin.getConfigManager().getPrefix() +
+                "§eArena is empty, resetting the game...");
+            stopGame();
+        }
     }
 
     public void startCountdown(int seconds) {
@@ -130,13 +169,15 @@ public class GameManager {
     }
 
     public void onPlayerJoin(Player player) {
-        if (!playerDataMap.containsKey(player.getUniqueId())) {
-            playerDataMap.put(player.getUniqueId(), new PlayerData());
-        }
+        // No-op: a (re)connecting player only gets tracked once they actually join an
+        // arena via /wave join - see LobbyManager. Previously this gave every single
+        // connecting player a PlayerData entry (and by extension gold/kill tracking)
+        // regardless of whether they were anywhere near the game.
     }
 
     public void onPlayerQuit(Player player) {
-        // Keep player data for when they rejoin
+        // Disconnecting counts as leaving the arena outright (see PlayerQuitListener),
+        // so there is no lingering PlayerData to keep around for a "rejoin".
     }
 
     public void addKill(Player player) {

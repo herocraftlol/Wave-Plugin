@@ -6,11 +6,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
@@ -20,8 +22,14 @@ public class LobbyManager {
     private final ZombieWaves plugin;
     private final Set<UUID> playersInLobby;
     private final Map<UUID, Location> playerPreviousLocations;
-    private final Map<UUID, Integer> lobbyCountdowns;
     private final Map<String, BukkitRunnable> arenaCountdowns;
+
+    // Lobby item slots (5th slot = index 4, matches HikaBrain's convention)
+    public static final int LEAVE_SLOT = 4;
+    public static final int FORCE_START_SLOT = 0;
+
+    private final NamespacedKey leaveItemKey;
+    private final NamespacedKey forceStartItemKey;
     
     private static final int LOBBY_COUNTDOWN = 10; // seconds before game starts
 
@@ -29,8 +37,9 @@ public class LobbyManager {
         this.plugin = plugin;
         this.playersInLobby = new HashSet<>();
         this.playerPreviousLocations = new HashMap<>();
-        this.lobbyCountdowns = new HashMap<>();
         this.arenaCountdowns = new HashMap<>();
+        this.leaveItemKey = new NamespacedKey(plugin, "lobby_leave_item");
+        this.forceStartItemKey = new NamespacedKey(plugin, "lobby_force_start_item");
     }
 
     public boolean joinArena(Player player, String arenaName) {
@@ -50,7 +59,7 @@ public class LobbyManager {
         
         if (plugin.getArenaManager().isArenaFull(arenaName)) {
             player.sendMessage(plugin.getConfigManager().getPrefix() + 
-                "§cArena is full! Maximum " + plugin.getArenaManager().getMaxPlayersPerArena() + " players.");
+                "§cArena is full! Maximum " + plugin.getArenaManager().getMaxPlayersPerArena(arenaName) + " players.");
             return false;
         }
         
@@ -102,7 +111,18 @@ public class LobbyManager {
     }
 
     private void giveLobbyItems(Player player) {
-        // Diamond for admin to force start
+        // Barrier for everyone: leave the lobby
+        ItemStack barrier = new ItemStack(Material.BARRIER);
+        ItemMeta barrierMeta = barrier.getItemMeta();
+        if (barrierMeta != null) {
+            barrierMeta.setDisplayName(plugin.getConfigManager().colorize("§c§lLeave Arena"));
+            barrierMeta.setLore(List.of(plugin.getConfigManager().colorize("§7Click to leave (/wave leave)")));
+            barrierMeta.getPersistentDataContainer().set(leaveItemKey, PersistentDataType.BYTE, (byte) 1);
+            barrier.setItemMeta(barrierMeta);
+        }
+        player.getInventory().setItem(LEAVE_SLOT, barrier);
+
+        // Diamond for admins: force start immediately
         if (player.hasPermission("zombiewaves.admin")) {
             ItemStack diamond = new ItemStack(Material.DIAMOND);
             ItemMeta meta = diamond.getItemMeta();
@@ -113,49 +133,75 @@ public class LobbyManager {
             lore.add(plugin.getConfigManager().colorize("§7Click to start the game"));
             lore.add(plugin.getConfigManager().colorize("§7immediately (admin only)"));
             meta.setLore(lore);
+            meta.getPersistentDataContainer().set(forceStartItemKey, PersistentDataType.BYTE, (byte) 1);
             diamond.setItemMeta(meta);
-            player.getInventory().setItem(4, diamond); // Center slot
+            player.getInventory().setItem(FORCE_START_SLOT, diamond);
         }
     }
 
+    public boolean isLeaveItem(ItemStack item) {
+        if (item == null || item.getType() != Material.BARRIER || !item.hasItemMeta()) return false;
+        Byte tag = item.getItemMeta().getPersistentDataContainer().get(leaveItemKey, PersistentDataType.BYTE);
+        return tag != null && tag == (byte) 1;
+    }
+
+    public boolean isForceStartItem(ItemStack item) {
+        if (item == null || item.getType() != Material.DIAMOND || !item.hasItemMeta()) return false;
+        Byte tag = item.getItemMeta().getPersistentDataContainer().get(forceStartItemKey, PersistentDataType.BYTE);
+        return tag != null && tag == (byte) 1;
+    }
+
     public boolean leaveArena(Player player) {
-        if (!playersInLobby.contains(player.getUniqueId())) {
+        // Case 1: still waiting in the lobby (not yet in-game)
+        if (playersInLobby.contains(player.getUniqueId())) {
+            String arenaName = plugin.getArenaManager().getPlayerArena(player.getUniqueId());
+            
+            // Remove from lobby
+            playersInLobby.remove(player.getUniqueId());
+            plugin.getArenaManager().removePlayerArena(player.getUniqueId());
+            
+            teleportBackAndReset(player);
             player.sendMessage(plugin.getConfigManager().getPrefix() + 
-                "§cYou are not in an arena!");
-            return false;
+                "§aYou left the arena.");
+            plugin.getScoreboardManager().clearScoreboard(player);
+
+            if (arenaName != null) {
+                checkAndStopCountdown(arenaName);
+            }
+            return true;
         }
-        
-        String arenaName = plugin.getArenaManager().getPlayerArena(player.getUniqueId());
-        
-        // Cancel countdown if player was in countdown
-        if (arenaName != null && lobbyCountdowns.containsKey(player.getUniqueId())) {
-            lobbyCountdowns.remove(player.getUniqueId());
-            checkAndStopCountdown(arenaName);
+
+        // Case 2: actively playing a running wave game
+        if (plugin.getGameManager().isActivePlayer(player)) {
+            // Removing them may auto-stop/reset the game if they were the last one -
+            // see GameManager#removePlayer().
+            plugin.getGameManager().removePlayer(player);
+            plugin.getArenaManager().removePlayerArena(player.getUniqueId());
+
+            teleportBackAndReset(player);
+            player.sendMessage(plugin.getConfigManager().getPrefix() + 
+                "§aYou left the arena.");
+            plugin.getScoreboardManager().clearScoreboard(player);
+            return true;
         }
-        
-        // Remove from lobby
-        playersInLobby.remove(player.getUniqueId());
-        plugin.getArenaManager().removePlayerArena(player.getUniqueId());
-        
-        // Teleport back to previous location or global exit
+
+        player.sendMessage(plugin.getConfigManager().getPrefix() + 
+            "§cYou are not in an arena!");
+        return false;
+    }
+
+    /** Teleports a leaving player back to where they were before joining, restores survival mode. */
+    private void teleportBackAndReset(Player player) {
         Location returnLoc = playerPreviousLocations.remove(player.getUniqueId());
         if (returnLoc == null) {
             returnLoc = plugin.getArenaManager().getGlobalExitLocation();
         }
-        
         if (returnLoc == null) {
             returnLoc = Bukkit.getWorlds().get(0).getSpawnLocation();
         }
         
         player.teleport(returnLoc);
         player.setGameMode(GameMode.SURVIVAL);
-        player.sendMessage(plugin.getConfigManager().getPrefix() + 
-            "§aYou left the arena.");
-        
-        // Clear scoreboard
-        plugin.getScoreboardManager().clearScoreboard(player);
-        
-        return true;
     }
 
     public boolean isInArena(Player player) {
@@ -174,23 +220,31 @@ public class LobbyManager {
         return plugin.getArenaManager().getMaxPlayersPerArena();
     }
 
+    public int getMaxPlayers(String arenaName) {
+        return plugin.getArenaManager().getMaxPlayersPerArena(arenaName);
+    }
+
+    public int getMinPlayers(String arenaName) {
+        return plugin.getArenaManager().getMinPlayersPerArena(arenaName);
+    }
+
     private void checkAndStartCountdown(String arenaName) {
         int playerCount = getPlayerCount(arenaName);
+        int minPlayers = getMinPlayers(arenaName);
         
-        // Start countdown if 1+ players (solo play enabled)
-        if (playerCount >= 1 && !arenaCountdowns.containsKey(arenaName)) {
+        if (playerCount >= minPlayers && !arenaCountdowns.containsKey(arenaName)) {
             startArenaCountdown(arenaName);
         }
     }
 
     private void checkAndStopCountdown(String arenaName) {
         int playerCount = getPlayerCount(arenaName);
+        int minPlayers = getMinPlayers(arenaName);
         
-        // Stop countdown if less than 2 players
-        if (playerCount < 2 && arenaCountdowns.containsKey(arenaName)) {
+        if (playerCount < minPlayers && arenaCountdowns.containsKey(arenaName)) {
             stopArenaCountdown(arenaName);
             broadcastToArena(arenaName, plugin.getConfigManager().getPrefix() + 
-                "§cNot enough players! Waiting for more...");
+                "§cNot enough players! Waiting for more (need " + minPlayers + ")...");
         }
     }
 
@@ -199,6 +253,7 @@ public class LobbyManager {
         if (arena == null) return;
         
         int playerCount = getPlayerCount(arenaName);
+        int minPlayers = getMinPlayers(arenaName);
         
         BukkitRunnable countdown = new BukkitRunnable() {
             int seconds = LOBBY_COUNTDOWN;
@@ -213,11 +268,11 @@ public class LobbyManager {
                     return;
                 }
                 
-                // Check if still have players (solo = 1 player minimum)
-                if (getPlayerCount(arenaName) < 1) {
+                // Check if we still meet this arena's minimum player requirement
+                if (getPlayerCount(arenaName) < minPlayers) {
                     stopArenaCountdown(arenaName);
                     broadcastToArena(arenaName, plugin.getConfigManager().getPrefix() + 
-                        "§cNo players left! Countdown stopped.");
+                        "§cNot enough players left! Countdown stopped.");
                     cancel();
                     return;
                 }
@@ -238,13 +293,12 @@ public class LobbyManager {
         arenaCountdowns.put(arenaName, countdown);
         countdown.runTaskTimer(plugin, 20L, 20L);
         
-        // Different message for solo vs multiplayer
-        if (playerCount == 1) {
+        if (playerCount == 1 && minPlayers == 1) {
             broadcastToArena(arenaName, plugin.getConfigManager().getPrefix() + 
                 "§eSolo play enabled! Starting countdown...");
         } else {
             broadcastToArena(arenaName, plugin.getConfigManager().getPrefix() + 
-                "§aEnough players! Starting countdown...");
+                "§aEnough players (" + playerCount + "/" + minPlayers + " min)! Starting countdown...");
         }
     }
 
@@ -303,27 +357,26 @@ public class LobbyManager {
             gameSpawn = arena.getLobbyLocation();
         }
         
+        Set<UUID> enteringPlayers = new HashSet<>();
         for (UUID playerId : playersInLobby) {
             if (arenaName.equals(plugin.getArenaManager().getPlayerArena(playerId))) {
+                enteringPlayers.add(playerId);
                 Player player = Bukkit.getPlayer(playerId);
                 if (player != null && player.isOnline()) {
                     player.teleport(gameSpawn);
+                    player.getInventory().clear();
                     plugin.getScoreboardManager().showGameScoreboard(player);
                 }
             }
         }
         
         // Remove from lobby (they're now in game)
-        for (UUID playerId : new HashSet<>(playersInLobby)) {
-            if (arenaName.equals(plugin.getArenaManager().getPlayerArena(playerId))) {
-                playersInLobby.remove(playerId);
-            }
-        }
+        playersInLobby.removeAll(enteringPlayers);
         
-        // Start the game
+        // Start the game with exactly this arena's players
         plugin.getArenaManager().setActiveArena(arenaName);
         plugin.getGameManager().setSelectedArena(arenaName);
-        plugin.getGameManager().startGame();
+        plugin.getGameManager().startGame(enteringPlayers);
     }
 
     private void broadcastToArena(String arenaName, String message) {
@@ -378,20 +431,30 @@ public class LobbyManager {
 
     /**
      * Nettoyage silencieux (pas de téléportation ni message) quand un joueur
-     * en lobby se déconnecte. Sans cela, playersInLobby/playerArenas et la
-     * position pré-lobby du joueur restaient bloqués indéfiniment.
+     * en lobby OU en pleine partie se déconnecte. Sans cela, playersInLobby/
+     * playerArenas et la position pré-lobby du joueur restaient bloqués
+     * indéfiniment, et une partie pouvait rester "active" pour toujours avec
+     * un dernier joueur fantôme.
      */
     public void handleQuit(Player player) {
         UUID id = player.getUniqueId();
-        if (!playersInLobby.remove(id)) return;
 
-        String arenaName = plugin.getArenaManager().getPlayerArena(id);
-        plugin.getArenaManager().removePlayerArena(id);
-        playerPreviousLocations.remove(id);
-        lobbyCountdowns.remove(id);
+        if (playersInLobby.remove(id)) {
+            String arenaName = plugin.getArenaManager().getPlayerArena(id);
+            plugin.getArenaManager().removePlayerArena(id);
+            playerPreviousLocations.remove(id);
 
-        if (arenaName != null) {
-            checkAndStopCountdown(arenaName);
+            if (arenaName != null) {
+                checkAndStopCountdown(arenaName);
+            }
+            return;
+        }
+
+        if (plugin.getGameManager().isActivePlayer(player)) {
+            // May auto-stop/reset the game if this was the last active player.
+            plugin.getGameManager().removePlayer(player);
+            plugin.getArenaManager().removePlayerArena(id);
+            playerPreviousLocations.remove(id);
         }
     }
 }

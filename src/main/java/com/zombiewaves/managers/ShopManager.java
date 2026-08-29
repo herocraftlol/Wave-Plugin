@@ -27,13 +27,25 @@ public class ShopManager {
     }
 
     private void loadShopItems() {
+        shopItems.clear();
         ConfigurationSection section = plugin.getConfig().getConfigurationSection("shop.items");
         if (section == null) return;
+
+        // Balances shop prices against how much gold mobs actually give: an item worth
+        // "kills: 20" in config.yml costs roughly 20 average kills, whatever the current
+        // mob-types gold-per-kill values are. Recomputed on every reload/plugin start.
+        double avgGoldPerKill = plugin.getConfigManager().getAverageGoldPerKill(null);
 
         for (String key : section.getKeys(false)) {
             String typeStr = section.getString(key + ".type");
             String name = plugin.getConfigManager().colorize(section.getString(key + ".name", key));
-            int price = section.getInt(key + ".price", 100);
+            int price;
+            if (section.contains(key + ".kills")) {
+                double kills = section.getDouble(key + ".kills");
+                price = (int) Math.round(kills * avgGoldPerKill);
+            } else {
+                price = section.getInt(key + ".price", 100);
+            }
             List<String> lore = section.getStringList(key + ".description");
             int amount = section.getInt(key + ".amount", 1);
             Map<Enchantment, Integer> enchantments = parseEnchantments(section.getStringList(key + ".enchantments"));
@@ -46,9 +58,14 @@ public class ShopManager {
                 continue;
             }
 
-            ShopItem item = new ShopItem(key, material, name, price, lore, amount, enchantments);
+            ShopItem item = new ShopItem(key, material, name, Math.max(1, price), lore, amount, enchantments);
             shopItems.put(key, item);
         }
+    }
+
+    /** Reloads shop items/prices from config.yml - called from ZombieWaves#reloadPlugin(). */
+    public void reloadShopItems() {
+        loadShopItems();
     }
 
     private Map<Enchantment, Integer> parseEnchantments(List<String> enchantmentStrings) {

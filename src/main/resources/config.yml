@@ -9,6 +9,8 @@ general:
   wave-delay: 30
   # Minimum players required to start
   min-players: 1
+  # Default maximum players per arena (used unless an arena sets its own via /wave setmaxplayers)
+  default-max-players: 20
   # Grace period before first wave in seconds
   grace-period: 60
 
@@ -78,31 +80,36 @@ spawn-points:
       z: 10
 
 # Shop items
+# Prices are balanced dynamically: "kills" = roughly how many average mob kills the item
+# should cost, given the current mob-types gold-per-kill/spawn-weight values below. Change
+# a mob's gold-per-kill and every shop price automatically follows on the next reload -
+# no need to hand-tune prices every time you rebalance mobs. ("price" still works as a
+# fallback flat gold value on items with no "kills" set.)
 shop:
   # Weapons
   items:
     iron-sword:
       type: IRON_SWORD
       name: "&6Iron Sword"
-      price: 50
+      kills: 9
       description:
         - "&7A reliable weapon"
     diamond-sword:
       type: DIAMOND_SWORD
       name: "&bDiamond Sword"
-      price: 150
+      kills: 27
       description:
         - "&7A powerful weapon"
     bow:
       type: BOW
       name: "&5Bow"
-      price: 100
+      kills: 16
       description:
         - "&7Ranged weapon"
     arrow:
       type: ARROW
       name: "&aArrow x16"
-      price: 20
+      kills: 3
       description:
         - "&716 Arrows"
       amount: 16
@@ -110,32 +117,32 @@ shop:
     iron-helmet:
       type: IRON_HELMET
       name: "&7Iron Helmet"
-      price: 75
+      kills: 12
       description:
         - "&7Basic protection"
     iron-chestplate:
       type: IRON_CHESTPLATE
       name: "&7Iron Chestplate"
-      price: 100
+      kills: 17
       description:
         - "&7Better protection"
     iron-leggings:
       type: IRON_LEGGINGS
       name: "&7Iron Leggings"
-      price: 90
+      kills: 15
       description:
         - "&7Better protection"
     iron-boots:
       type: IRON_BOOTS
       name: "&7Iron Boots"
-      price: 60
+      kills: 10
       description:
         - "&7Better protection"
     # Upgrades
     speed-boots:
       type: GOLDEN_BOOTS
       name: "&6Speed Boots"
-      price: 200
+      kills: 35
       description:
         - "&7Grants speed effect"
       enchantments:
@@ -144,7 +151,7 @@ shop:
     sharp-sword:
       type: DIAMOND_SWORD
       name: "&cSharp Diamond Sword"
-      price: 300
+      kills: 53
       description:
         - "&7Sharpness II"
       enchantments:

@@ -21,6 +21,7 @@ public class WaveManager {
 
     private final ZombieWaves plugin;
     private final Set<UUID> activeMobs;
+    private final Map<UUID, String> activeMobTypeKeys;
     private final List<BukkitTask> activeTasks;
     private int mobsToSpawn;
     private int mobsSpawned;
@@ -31,6 +32,7 @@ public class WaveManager {
     public WaveManager(ZombieWaves plugin) {
         this.plugin = plugin;
         this.activeMobs = new HashSet<>();
+        this.activeMobTypeKeys = new HashMap<>();
         this.activeTasks = new ArrayList<>();
     }
 
@@ -43,8 +45,12 @@ public class WaveManager {
         // Get player count from arena players
         int playerCount = getPlayerCountInArena();
         
-        // Calculate total mobs for this wave based on player count
-        mobsToSpawn = plugin.getConfigManager().getMobCountForWave(waveNumber, playerCount);
+        // Calculate total mobs for this wave, honoring this arena's base-mobs/increase
+        // overrides if configured (falls back to the global config.yml defaults otherwise).
+        com.zombiewaves.utils.Arena arena = getSelectedArena();
+        int baseOverride = arena != null ? arena.getBaseMobs() : -1;
+        int increaseOverride = arena != null ? arena.getMobIncreasePerWave() : -1;
+        mobsToSpawn = plugin.getConfigManager().getMobCountForWave(waveNumber, playerCount, baseOverride, increaseOverride);
         mobsSpawned = 0;
         
         // Broadcast wave start with player info
@@ -105,6 +111,12 @@ public class WaveManager {
         activeTasks.add(spawnTask);
     }
 
+    private com.zombiewaves.utils.Arena getSelectedArena() {
+        String arenaName = plugin.getGameManager().getSelectedArena();
+        if (arenaName == null) return null;
+        return plugin.getArenaManager().getArena(arenaName);
+    }
+
     private void spawnMob() {
         // Get spawn points from arena
         List<Location> spawnPoints = getArenaSpawnPoints();
@@ -115,8 +127,13 @@ public class WaveManager {
         
         Location spawnLoc = spawnPoints.get(new Random().nextInt(spawnPoints.size()));
         
-        // Get random mob type
-        ConfigManager.MobTypeConfig mobType = plugin.getConfigManager().getRandomMobType();
+        // Pick a mob type, restricted to this arena's configured roster if it has one
+        // (falls back to every mob type in config.yml otherwise). The pick is weighted
+        // both by the type's configured spawn-weight AND its power (health x damage), so
+        // mobs are spread out fairly instead of just uniformly at random.
+        com.zombiewaves.utils.Arena arena = getSelectedArena();
+        List<String> allowedTypes = arena != null ? arena.getMobTypes() : null;
+        ConfigManager.MobTypeConfig mobType = plugin.getConfigManager().getRandomMobType(allowedTypes);
         
         // Spawn the entity
         EntityType entityType;
@@ -133,18 +150,16 @@ public class WaveManager {
             // Apply wave difficulty scaling
             applyDifficultyScaling(livingEntity, mobType);
             
-            // Track the mob
+            // Track the mob and which config key it was spawned as (used for the gold
+            // reward on death - see EntityDeathListener - instead of guessing it back
+            // from the entity type, which breaks as soon as two mob-types share a type).
             activeMobs.add(entity.getUniqueId());
+            activeMobTypeKeys.put(entity.getUniqueId(), mobType.getName());
         }
     }
 
     private List<Location> getArenaSpawnPoints() {
-        String arenaName = plugin.getGameManager().getSelectedArena();
-        if (arenaName == null) {
-            return new ArrayList<>();
-        }
-        
-        var arena = plugin.getArenaManager().getArena(arenaName);
+        com.zombiewaves.utils.Arena arena = getSelectedArena();
         if (arena == null) {
             return new ArrayList<>();
         }
@@ -178,12 +193,18 @@ public class WaveManager {
 
     public void onMobKilled(UUID mobId) {
         activeMobs.remove(mobId);
+        activeMobTypeKeys.remove(mobId);
         
         // Check if wave is complete
         if (mobsSpawned >= mobsToSpawn && activeMobs.isEmpty() && waveInProgress) {
             waveInProgress = false;
             onWaveComplete();
         }
+    }
+
+    /** Config key ("zombie", "skeleton", ...) this mob was spawned as, or null if untracked. */
+    public String getMobTypeKey(UUID mobId) {
+        return activeMobTypeKeys.get(mobId);
     }
 
     private void onWaveComplete() {
@@ -217,6 +238,7 @@ public class WaveManager {
             }
         }
         activeMobs.clear();
+        activeMobTypeKeys.clear();
         
         waveInProgress = false;
     }

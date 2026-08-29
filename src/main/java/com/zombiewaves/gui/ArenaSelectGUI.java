@@ -127,7 +127,7 @@ public class ArenaSelectGUI {
     private ItemStack buildArenaItem(Arena arena) {
         String name = arena.getName();
         int current = plugin.getArenaManager().getPlayerCountInArena(name);
-        int max = plugin.getArenaManager().getMaxPlayersPerArena();
+        int max = plugin.getArenaManager().getMaxPlayersPerArena(name);
         int spectators = plugin.getSpectatorManager().getSpectatorCount(name);
 
         Material mat;
